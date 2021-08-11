@@ -8,7 +8,7 @@ import qualified Data.Set as Set
 
 type AtomName = String
 type Valuation = AtomName -> Bool
-type BinOp a = a -> a -> a 
+type BinOp a = a -> a -> a
 
 -------- Representation of a Proposition
 data Prop =   Atomic AtomName
@@ -29,14 +29,28 @@ data Prop =   Atomic AtomName
 --  6. Equivalence
 
 
+
 instance Show Prop where
     show (Atomic xs) = xs
-    show (Not prop) = "~" ++ show prop
-    show (And p q) = "(" ++ show p ++ " & " ++ show q ++ ")"
-    show (Or p q) = "(" ++ show p ++ " || " ++ show q ++ ")"
-    show (Imp p q) = "(" ++ show p ++ " -> " ++ show q ++ ")"
-    show (Eqv p q) = "(" ++ show p ++ " <-> " ++ show q ++ ")"
-    show Contradiction = "F"
+    show (Not prop) = "~" ++ parensAddition (Not prop) prop
+    show (And p q) = parensAddition (And p q) p ++ " & " ++ parensAddition (And p q) q
+    show (Or p q) = parensAddition (Or p q) p ++ " || " ++ parensAddition (Or p q) q
+    show (Imp p q) = parensAddition (Imp p q) p ++ " -> " ++ parensAddition (Imp p q) q
+    show (Eqv p q) = parensAddition (Eqv p q) p ++ " <-> " ++ parensAddition (Eqv p q) q
+    show Contradiction = "F" 
+            
+parensAddition :: Prop -> Prop -> String
+parensAddition a c = if same a c then show c else parens (show c)
+    where   parens s = "(" ++ s ++ ")"
+            same :: Prop -> Prop -> Bool
+            same _ (Not _) = True
+            same (And _ _) (And _ _) = True
+            same (Or _ _) (Or _ _) = True
+            same (Imp _ _) (Imp _ _) = True
+            same (Eqv _ _) (Eqv _ _) = True
+            same _ (Atomic _) = True
+            same _ _ = False
+
 
 foldProp :: (String -> b) -> (b -> b) -> BinOp b -> b -> Prop -> b
 foldProp atomic no bin c prop = case prop of

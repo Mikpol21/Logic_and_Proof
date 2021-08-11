@@ -1,10 +1,14 @@
 {-# LANGUAGE LambdaCase #-}
+
+module Logic_Parser where
+
 import Data.Char(isDigit,isSpace,ord,chr)
 import Control.Applicative
 import Control.Monad
 import Propositions
 
--------- Parser type --------
+
+-------- Parser instances --------
 
 newtype Parser a = Parser { parse :: String -> [(a, String)] }
 runParser :: Parser a -> String -> a
@@ -43,32 +47,20 @@ instance MonadPlus Parser where
     Parser p `mplus` Parser q = Parser $ \cs -> p cs ++ q cs
 (<++>) :: MonadPlus m => m a -> m a -> m a
 (<++>) = mplus
----------------------------
 
 (<?>) :: (Alternative m, Monad m) => (a -> Bool) -> m a -> m a
 c <?> p = do
         x <- p
         if c x then return x else empty
-{-
-some :: (Alternative f, Applicative f) => f a -> f [a]
-some v = pure (:) <*> v <*> many v
- 
-many :: (Alternative f, Applicative f) => f a -> f [a]
-many v = some v <|> pure []
--}
 
 chainl, chainr :: (Monad p, Alternative p) => p (a -> a -> a) -> p a -> p a
 chainl op p = foldl (flip ($)) <$> p <*> many (flip <$> op <*> p)
---chainr op p = foldr ($) <$> empty <*> many (flip ($) <$> p <*> op) <*> p
 chainr op p = do
     xs <- many $ flip ($) <$> p <*> op
     e <- p
     return $ foldr ($) e xs
 
-c :: Alternative p => p a -> p (a -> a -> a) -> p (a -> a)
-c p op = flip ($) <$> p <*> op
-
--------- Lets go --------
+-------- Parser combinators --------
 
 char :: Parser Char
 char = Parser $ \case
@@ -113,6 +105,8 @@ infixOp x f = symbol x >> return f
 word :: Parser String
 word = token $ some . oneOf $ ['a'..'z'] ++ "0123456789"
 
+------- Logic interpretation --------------
+
 ----- Precedence
 --  1. Parethesis
 --  2. Negation
@@ -123,7 +117,7 @@ word = token $ some . oneOf $ ['a'..'z'] ++ "0123456789"
 
 eqvSymbols, impSymbols, orSymbols, andSymbols, negationSymbols, contradictionSymbols :: [String]
 eqvSymbols = ["<=>", "eqv", "<->"]
-impSymbols = ["->", "=>", "imp", "implies"]
+impSymbols = ["->", "=>", "implies", "imp"]
 orSymbols = ["||", "or", "v", "+"]
 andSymbols = ["&", "&&", "and", "*", ".", "^"]
 negationSymbols = ["not", "~", "!"]
@@ -146,32 +140,12 @@ atomics, terms, negation, contradiction :: Parser Prop
 atomics = Atomic <$> word
 contradiction = oneOfs contradictionSymbols >> return Contradiction
 negation =  oneOfs negationSymbols >> (Not <$> terms)
---terms = parens equivalences <|> contradiction <|> negation <|> atomics
 terms = contradiction <|> negation <|> atomics <|> parens equivalences
 
 
-
+-------------------------------
 run :: String -> Prop
 run = runParser equivalences
 testing :: String
-testing = "~p and q or r implies r  imp     not (a implies b)eqv not p or q or r"
-
-{-
-eqvOp, impOp, orOp, andOp :: Parser (Prop -> Prop -> Prop)
-eqvOp = infixOp "<->" Eqv
-impOp = infixOp "->" Imp
-orOp = infixOp "||" Or
-andOp = infixOp "&" And
-
-
-equivalences, implications, disjunctions, conjunctions :: Parser Prop
-equivalences = eqvOp `chainr` implications
-implications = impOp `chainr` disjunctions
-disjunctions = orOp `chain` conjunctions
-conjunctions = andOp `chain` terms
-
-atomics, terms, negation :: Parser Prop
-atomics = Atomic <$> word
-negation = unaryOp "~" Not <*> terms
-terms = atomics <|> negation <|> parens equivalences
--}
+testing = "~p and q or r implies r  implies     not (a imp b)eqv not p or q or r"
+test2 = "not (~p and q)"
