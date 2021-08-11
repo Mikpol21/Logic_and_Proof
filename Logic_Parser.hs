@@ -57,9 +57,17 @@ many :: (Alternative f, Applicative f) => f a -> f [a]
 many v = some v <|> pure []
 -}
 
-chain, chainr :: Alternative p => p (a -> a -> a) -> p a -> p a
-chain op p = foldl (flip ($)) <$> p <*> many (flip <$> op <*> p)
-chainr op p = foldr ($) <$> p <*> many (flip <$> op <*> p)
+chainl, chainr :: (Monad p, Alternative p) => p (a -> a -> a) -> p a -> p a
+chainl op p = foldl (flip ($)) <$> p <*> many (flip <$> op <*> p)
+--chainr op p = foldr ($) <$> empty <*> many (flip ($) <$> p <*> op) <*> p
+chainr op p = do
+    xs <- many $ flip ($) <$> p <*> op
+    e <- p
+    return $ foldr ($) e xs
+
+c :: Alternative p => p a -> p (a -> a -> a) -> p (a -> a)
+c p op = flip ($) <$> p <*> op
+
 -------- Lets go --------
 
 char :: Parser Char
@@ -67,8 +75,11 @@ char = Parser $ \case
   "" -> []
   c : cs -> [(c, cs)]
 
-oneOf :: String -> Parser Char
+oneOf :: [Char] -> Parser Char
 oneOf xs = flip elem xs <?> char
+
+oneOfs :: [String] -> Parser String
+oneOfs = foldl (<|>) empty . map symbol
 
 character :: Char -> Parser Char
 character c = (c == ) <?> char
@@ -119,22 +130,22 @@ negationSymbols = ["not", "~", "!"]
 contradictionSymbols = ["F", "contradiction", "bottom", "0"]
 
 impOp, orOp, andOp :: Parser (Prop -> Prop -> Prop)
-eqvOp = foldl (<|>) empty . map (`infixOp` Eqv) $ eqvSymbols
-impOp = foldl (<|>) empty . map (`infixOp` Imp) $ impSymbols
-orOp = foldl (<|>) empty . map (`infixOp` Or) $ orSymbols
-andOp = foldl (<|>) empty . map (`infixOp` And) $ andSymbols
+eqvOp = oneOfs eqvSymbols >> return Eqv
+impOp = oneOfs impSymbols >> return Imp
+orOp = oneOfs orSymbols >> return Or
+andOp = oneOfs andSymbols >> return And
 
 
 equivalences, implications, disjunctions, conjunctions :: Parser Prop
 equivalences = eqvOp `chainr` implications
 implications = impOp `chainr` disjunctions
-disjunctions = orOp `chain` conjunctions
-conjunctions = andOp `chain` terms
+disjunctions = orOp `chainl` conjunctions
+conjunctions = andOp `chainl` terms
 
 atomics, terms, negation, contradiction :: Parser Prop
 atomics = Atomic <$> word
-contradiction = foldl (<|>) empty . map (\str -> symbol str >> return Contradiction) $ contradictionSymbols
-negation =  foldl (<|>) empty . map (\str -> symbol str >> Not <$> terms) $ negationSymbols
+contradiction = oneOfs contradictionSymbols >> return Contradiction
+negation =  oneOfs negationSymbols >> (Not <$> terms)
 --terms = parens equivalences <|> contradiction <|> negation <|> atomics
 terms = contradiction <|> negation <|> atomics <|> parens equivalences
 
@@ -143,7 +154,7 @@ terms = contradiction <|> negation <|> atomics <|> parens equivalences
 run :: String -> Prop
 run = runParser equivalences
 testing :: String
-testing = "~p & q & r -> r  =>     not (a implies b)<=> !p or q || r"
+testing = "~p and q or r implies r  imp     not (a implies b)eqv not p or q or r"
 
 {-
 eqvOp, impOp, orOp, andOp :: Parser (Prop -> Prop -> Prop)
