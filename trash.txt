@@ -1,0 +1,25 @@
+satisfying :: Prop -> [Valuation] -> [Valuation]
+satisfying p = filter $ flip eval p . (Map.!)
+
+union :: Valuation -> Valuation -> Maybe Valuation
+union f g = if all ((\x ->(x `Map.notMember` f) || f Map.! x == g Map.! x ) . fst) (Map.toList g)
+        then Just $ Map.union f g
+        else Nothing
+
+nonContradicting :: [Valuation] -> Maybe Valuation
+nonContradicting = foldl (\ acc m -> acc >>= union m) (Just Map.empty)
+
+--bruteIsTheorem :: Conjecture -> Bool
+bruteIsTheorem :: Conjecture -> Bool
+bruteIsTheorem ([] `Proves` q) = all (flip eval q . (Map.!)) $ allValuations q
+bruteIsTheorem (ps `Proves` q) = all
+  (flip eval q . (Map.!) . getFromJust) $
+  filter isJust . map nonContradicting $ cartesian goodVals
+    where   goodVals =  map (\p -> satisfying p (allValuations p)) ps -- Premisses -> Good Valuations
+            isJust Nothing = False
+            isJust _ = True
+            getFromJust (Just x) = x
+
+solve, solve' :: String -> Bool
+solve = bruteIsTheorem . runParser conjectureParser 
+solve' = easyBruteIsTheorem . runParser conjectureParser 

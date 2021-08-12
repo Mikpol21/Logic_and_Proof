@@ -8,7 +8,7 @@ import Control.Monad
 import Propositions
 
 
--------- Parser instances --------
+--------  Parser instances  --------
 
 newtype Parser a = Parser { parse :: String -> [(a, String)] }
 runParser :: Parser a -> String -> a
@@ -17,6 +17,7 @@ runParser m s =
     [(res, [])] -> res
     [(_, rs)]   -> error "Parser did not consume entire stream."
     _           -> error "Parser error."
+
 
 instance Monad Parser where
     return = pure
@@ -60,14 +61,14 @@ chainr op p = do
     e <- p
     return $ foldr ($) e xs
 
--------- Parser combinators --------
+--------  Parser combinators  --------
 
 char :: Parser Char
 char = Parser $ \case
   "" -> []
   c : cs -> [(c, cs)]
 
-oneOf :: [Char] -> Parser Char
+oneOf :: String -> Parser Char
 oneOf xs = flip elem xs <?> char
 
 oneOfs :: [String] -> Parser String
@@ -103,25 +104,17 @@ infixOp :: String -> (a -> a -> a) -> Parser (a -> a -> a)
 infixOp x f = symbol x >> return f
 
 word :: Parser String
-word = token $ some . oneOf $ ['a'..'z'] ++ "0123456789"
+word = token $ some . oneOf $ ['a'..'z'] ++ ['A'..'Z'] ++ "0123456789"
 
-------- Logic interpretation --------------
-
------ Precedence
---  1. Parethesis
---  2. Negation
---  3. Conjuction
---  4. Disjunction
---  5. Implication
---  6. Equivalence
+--------  Logic interpretation  --------
 
 eqvSymbols, impSymbols, orSymbols, andSymbols, negationSymbols, contradictionSymbols :: [String]
-eqvSymbols = ["<=>", "eqv", "<->"]
-impSymbols = ["->", "=>", "implies", "imp"]
-orSymbols = ["||", "or", "v", "+"]
-andSymbols = ["&", "&&", "and", "*", ".", "^"]
-negationSymbols = ["not", "~", "!"]
-contradictionSymbols = ["F", "contradiction", "bottom", "0"]
+eqvSymbols = ["<=>", "eqv", "<->", "↔"]
+impSymbols = ["->", "=>", "implies", "imp", "→"]
+orSymbols = ["||", "or", "v", "+", "∨"]
+andSymbols = ["&", "&&", "and", "*", ".", "^", "∧"]
+negationSymbols = ["not", "~", "!", "¬"]
+contradictionSymbols = ["F", "contradiction", "bottom", "0", "⊥"]
 
 impOp, orOp, andOp :: Parser (Prop -> Prop -> Prop)
 eqvOp = oneOfs eqvSymbols >> return Eqv
@@ -130,22 +123,34 @@ orOp = oneOfs orSymbols >> return Or
 andOp = oneOfs andSymbols >> return And
 
 
-equivalences, implications, disjunctions, conjunctions :: Parser Prop
-equivalences = eqvOp `chainr` implications
-implications = impOp `chainr` disjunctions
-disjunctions = orOp `chainl` conjunctions
-conjunctions = andOp `chainl` terms
+equivalenceParser, implicationParser, disjunctionParser, conjunctionParser :: Parser Prop
+equivalenceParser = eqvOp `chainr` implicationParser
+implicationParser = impOp `chainr` disjunctionParser
+disjunctionParser = orOp `chainl` conjunctionParser
+conjunctionParser = andOp `chainl` termsParser
 
-atomics, terms, negation, contradiction :: Parser Prop
-atomics = Atomic <$> word
-contradiction = oneOfs contradictionSymbols >> return Contradiction
-negation =  oneOfs negationSymbols >> (Not <$> terms)
-terms = contradiction <|> negation <|> atomics <|> parens equivalences
+atomicsParser, termsParser, negationParser, contradictionParser, propParser :: Parser Prop
+atomicsParser = Atomic <$> word
+contradictionParser = oneOfs contradictionSymbols >> return Contradiction
+negationParser =  oneOfs negationSymbols >> Not <$> termsParser
+termsParser = contradictionParser <|> negationParser <|> atomicsParser <|> parens equivalenceParser
+propParser = equivalenceParser
 
-
--------------------------------
-run :: String -> Prop
-run = runParser equivalences
-testing :: String
+testing, test2 :: String
 testing = "~p and q or r implies r  implies     not (a imp b)eqv not p or q or r"
 test2 = "not (~p and q)"
+
+--------  Conjectures  --------
+
+teeSymbols :: [String]
+teeSymbols =  ["yields", "proves", "prove", "satisfies", "entails", "⊢"]
+
+teeOp :: Parser ([Prop] -> Prop -> Conjecture)
+teeOp = oneOfs teeSymbols >> return Proves
+
+conjectureParser :: Parser Conjecture
+conjectureParser = flip ($) <$> premissParser <*> teeOp <*> propParser
+                   <|>  ($ []) <$> teeOp <*> propParser
+
+premissParser :: Parser [Prop]
+premissParser = (:) <$> propParser <*> many (symbol "," >> propParser)

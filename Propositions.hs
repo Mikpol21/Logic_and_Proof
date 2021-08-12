@@ -1,14 +1,14 @@
 module Propositions where
 
-import Data.Map (Map)
-import qualified Data.Map as Map
+
 import Data.Set (Set)
 import qualified Data.Set as Set
 
 
 type AtomName = String
-type Valuation = AtomName -> Bool
-type BinOp a = a -> a -> a
+data Conjecture = Proves {premisses :: [Prop] , conclusion :: Prop} deriving Eq
+toProp :: Conjecture -> Prop
+toProp (ps `Proves` q) = foldr And (Not Contradiction) ps `Imp` q
 
 -------- Representation of a Proposition
 data Prop =   Atomic AtomName
@@ -28,17 +28,19 @@ data Prop =   Atomic AtomName
 --  5. Implication
 --  6. Equivalence
 
-
-
 instance Show Prop where
     show (Atomic xs) = xs
-    show (Not prop) = "~" ++ parensAddition (Not prop) prop
-    show (And p q) = parensAddition (And p q) p ++ " & " ++ parensAddition (And p q) q
-    show (Or p q) = parensAddition (Or p q) p ++ " || " ++ parensAddition (Or p q) q
-    show (Imp p q) = parensAddition (Imp p q) p ++ " -> " ++ parensAddition (Imp p q) q
-    show (Eqv p q) = parensAddition (Eqv p q) p ++ " <-> " ++ parensAddition (Eqv p q) q
-    show Contradiction = "F" 
-            
+    show (Not prop) = "¬" ++ parensAddition (Not prop) prop
+    show (And p q) = parensAddition (And p q) p ++ " ∨ " ++ parensAddition (And p q) q
+    show (Or p q) = parensAddition (Or p q) p ++ " ∧ " ++ parensAddition (Or p q) q
+    show (Imp p q) = parensAddition (Imp p q) p ++ " → " ++ parensAddition (Imp p q) q
+    show (Eqv p q) = parensAddition (Eqv p q) p ++ " ↔ " ++ parensAddition (Eqv p q) q
+    show Contradiction = "⊥" 
+
+instance Show Conjecture where
+    show (Proves [] y) = " ⊢ " ++ show y
+    show (Proves (x:xs) y) = show x ++ concatMap ((", "++).show) xs ++ " ⊢ " ++ show y
+
 parensAddition :: Prop -> Prop -> String
 parensAddition a c = if same a c then show c else parens (show c)
     where   parens s = "(" ++ s ++ ")"
@@ -52,7 +54,7 @@ parensAddition a c = if same a c then show c else parens (show c)
             same _ _ = False
 
 
-foldProp :: (String -> b) -> (b -> b) -> BinOp b -> b -> Prop -> b
+foldProp :: (String -> b) -> (b -> b) -> (b -> b -> b) -> b -> Prop -> b
 foldProp atomic no bin c prop = case prop of
     Atomic p -> atomic p
     Contradiction -> c
@@ -67,7 +69,7 @@ atomicNames :: Prop -> Set AtomName
 atomicNames = foldProp Set.singleton id Set.union Set.empty
 
 
-eval :: Valuation -> Prop -> Bool
+eval :: (AtomName -> Bool) -> Prop -> Bool
 eval v prop = case prop of
     Contradiction -> False
     Atomic p -> v p
@@ -78,5 +80,4 @@ eval v prop = case prop of
         where p' = eval v p
     p `Eqv` q -> eval v p == eval v q
 
-satisfying :: Prop -> [Valuation] -> [Valuation]
-satisfying p = filter $ flip eval p
+
