@@ -35,3 +35,35 @@ solve' = easyBruteIsTheorem . runParser conjectureParser
         (NotL p ) -> f "L ¬" ++ show p
         (NotR p ) -> f "R ¬" ++ show p
         where f xs = " applying " ++ xs ++ " rule\n" 
+
+
+show p = concat (zipWith (++) (map ((++".\t") . show) [1..]) (showProof p))
+
+
+
+
+
+--- ∨ ¬  ∧ → ↔ ⊥
+
+instance Show Rule where
+    show r = concat (showRule r)
+
+------- Proof Visaluation
+showRule :: Rule -> [String]
+showRule r =  case r of
+    Axiom -> [" from Axioms\n"]
+    AndL p -> f "L ∧" : showProof p
+    (AndR p q) -> f "R ∧" : g (showProof p ++ showProof q)
+    (OrL p q)  -> f "L ∨" : g (showProof p ++ showProof q)
+    (OrR p )  -> f "R ∨" : showProof p
+    (ImpL p q) -> f "L →" : g (showProof p ++ showProof q)
+    (ImpR p ) -> f "R →" : showProof p
+    (NotL p ) -> f "L ¬" : showProof p
+    (NotR p ) -> f "R ¬" : showProof p
+    (EqvR p q) -> f "R ↔" : g (showProof p ++ showProof q)
+    where   f xs = " applying " ++ xs ++ " rule\n"
+            g = map ('\t':)
+
+showProof :: Proof -> [String]
+showProof (Proof conj r) = (show conj ++ "\t\t" ++  head rs) : tail rs
+    where   rs = showRule r

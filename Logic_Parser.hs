@@ -12,8 +12,7 @@ import Propositions
 
 newtype Parser a = Parser { parse :: String -> [(a, String)] }
 runParser :: Parser a -> String -> a
-runParser m s =
-  case parse m s of
+runParser m s = case parse (spaces >> m) s of
     [(res, [])] -> res
     [(_, rs)]   -> error "Parser did not consume entire stream."
     _           -> error "Parser error."
@@ -135,10 +134,6 @@ contradictionParser = oneOfs contradictionSymbols >> return Contradiction
 negationParser =  oneOfs negationSymbols >> Not <$> termsParser
 termsParser = contradictionParser <|> negationParser <|> atomicsParser <|> parens equivalenceParser
 propParser = equivalenceParser
-
-testing, test2 :: String
-testing = "~p and q or r implies r  implies     not (a imp b)eqv not p or q or r"
-test2 = "not (~p and q)"
 
 --------  Conjectures  --------
 

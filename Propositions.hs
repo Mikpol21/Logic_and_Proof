@@ -33,7 +33,9 @@ instance Show Prop where
     show (Not prop) = "¬" ++ parensAddition (Not prop) prop
     show (And p q) = parensAddition (And p q) p ++ " ∧ " ++ parensAddition (And p q) q
     show (Or p q) = parensAddition (Or p q) p ++ " ∨ " ++ parensAddition (Or p q) q
-    show (Imp p q) = parensAddition (Imp p q) p ++ " → " ++ parensAddition (Imp p q) q
+    show (Imp p q) = case p of
+        Imp r s -> "(" ++ show p ++ ")" ++ " → " ++ parensAddition (Imp p q) q
+        _ -> parensAddition (Imp p q) p ++ " → " ++ parensAddition (Imp p q) q
     show (Eqv p q) = parensAddition (Eqv p q) p ++ " ↔ " ++ parensAddition (Eqv p q) q
     show Contradiction = "⊥" 
 
