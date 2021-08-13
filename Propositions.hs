@@ -6,9 +6,9 @@ import qualified Data.Set as Set
 
 
 type AtomName = String
-data Conjecture = Proves {premisses :: [Prop] , conclusion :: Prop} deriving Eq
+data Conjecture = Proves {antecedents :: [Prop] , consequents :: [Prop]} deriving Eq
 toProp :: Conjecture -> Prop
-toProp (ps `Proves` q) = foldr And (Not Contradiction) ps `Imp` q
+toProp (ps `Proves` qs) = foldr And (Not Contradiction) ps `Imp` foldr Or Contradiction qs
 
 -------- Representation of a Proposition
 data Prop =   Atomic AtomName
@@ -31,15 +31,17 @@ data Prop =   Atomic AtomName
 instance Show Prop where
     show (Atomic xs) = xs
     show (Not prop) = "¬" ++ parensAddition (Not prop) prop
-    show (And p q) = parensAddition (And p q) p ++ " ∨ " ++ parensAddition (And p q) q
-    show (Or p q) = parensAddition (Or p q) p ++ " ∧ " ++ parensAddition (Or p q) q
+    show (And p q) = parensAddition (And p q) p ++ " ∧ " ++ parensAddition (And p q) q
+    show (Or p q) = parensAddition (Or p q) p ++ " ∨ " ++ parensAddition (Or p q) q
     show (Imp p q) = parensAddition (Imp p q) p ++ " → " ++ parensAddition (Imp p q) q
     show (Eqv p q) = parensAddition (Eqv p q) p ++ " ↔ " ++ parensAddition (Eqv p q) q
     show Contradiction = "⊥" 
 
 instance Show Conjecture where
-    show (Proves [] y) = " ⊢ " ++ show y
-    show (Proves (x:xs) y) = show x ++ concatMap ((", "++).show) xs ++ " ⊢ " ++ show y
+    show (Proves xs ys) = showProps xs ++ " ⊢ " ++ showProps ys
+        where
+        showProps [] = ""
+        showProps (x:xs) = show x ++ concatMap ((", "++).show) xs
 
 parensAddition :: Prop -> Prop -> String
 parensAddition a c = if same a c then show c else parens (show c)

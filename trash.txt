@@ -23,3 +23,15 @@ bruteIsTheorem (ps `Proves` q) = all
 solve, solve' :: String -> Bool
 solve = bruteIsTheorem . runParser conjectureParser 
 solve' = easyBruteIsTheorem . runParser conjectureParser 
+
+
+ Axiom -> " from Axioms\n"
+        (AndL p) -> f "L ∧" ++ show p 
+        (AndR p q) -> f "R ∧" ++ show p ++ show q
+        (OrL p q)  -> f "L ∨" ++ show p ++ show q
+        (OrR p )  -> f "R ∨" ++ show p
+        (ImpL p q) -> f "L →" ++ show p ++ show q
+        (ImpR p ) -> f "R →" ++ show p
+        (NotL p ) -> f "L ¬" ++ show p
+        (NotR p ) -> f "R ¬" ++ show p
+        where f xs = " applying " ++ xs ++ " rule\n" 

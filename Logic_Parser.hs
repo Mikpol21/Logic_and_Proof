@@ -145,12 +145,12 @@ test2 = "not (~p and q)"
 teeSymbols :: [String]
 teeSymbols =  ["yields", "proves", "prove", "satisfies", "entails", "⊢"]
 
-teeOp :: Parser ([Prop] -> Prop -> Conjecture)
+teeOp :: Parser ([Prop] -> [Prop] -> Conjecture)
 teeOp = oneOfs teeSymbols >> return Proves
 
 conjectureParser :: Parser Conjecture
-conjectureParser = flip ($) <$> premissParser <*> teeOp <*> propParser
-                   <|>  ($ []) <$> teeOp <*> propParser
+conjectureParser = flip ($) <$> propsParser <*> teeOp <*> propsParser <|>
+                    flip ($) [] <$> teeOp <*> propsParser
 
-premissParser :: Parser [Prop]
-premissParser = (:) <$> propParser <*> many (symbol "," >> propParser)
+propsParser :: Parser [Prop]
+propsParser = (:) <$> propParser <*> many (symbol "," >> propParser) -- <|> return []
