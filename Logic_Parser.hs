@@ -3,9 +3,9 @@
 module Logic_Parser where
 
 import Data.Char(isDigit,isSpace,ord,chr)
-import Control.Applicative
-import Control.Monad
-import Propositions
+import Control.Applicative ( Alternative(..) )
+import Control.Monad ( MonadPlus(..) )
+import Propositions ( Conjecture(Proves), Prop(..) )
 
 
 --------  Parser instances  --------

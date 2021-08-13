@@ -1,7 +1,13 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 module Proofs where
-import Logic_Parser
+import Logic_Parser ( runParser, conjectureParser )
 import Propositions
+    ( atomicNames,
+      eval,
+      toProp,
+      AtomName,
+      Conjecture(Proves),
+      Prop(..) )
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -80,7 +86,7 @@ showProof g (Proof conj rule) = case rule of
     NotL p -> (f "L ¬" ++ "(" ++ show (g p) ++ ")") : showProof g p
     NotR p -> (f "R ¬" ++ "(" ++ show (g p) ++ ")") : showProof g p
     EqvR p q -> (f "R ↔" ++ show (g p , g q)) : addTab (showProof g p ++ showProof g q)
-    where   f xs = show conj ++ "\tapplying " ++ xs ++ " rule "
+    where   f xs = show conj ++ " \tapplying " ++ xs ++ " rule "
             addTab = map ('\t':)
 
 numberOfLine :: Proof -> [Proof] -> Int
