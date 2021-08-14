@@ -12,11 +12,13 @@ import Propositions ( Conjecture(Proves), Prop(..) )
 
 newtype Parser a = Parser { parse :: String -> [(a, String)] }
 runParser :: Parser a -> String -> a
-runParser m s = case parse (spaces >> m) s of
-    [(res, [])] -> res
-    [(_, rs)]   -> error "Parser did not consume entire stream."
-    _           -> error "Parser error."
-
+runParser m s = case complete of
+    x:xs -> fst x
+    []   -> if not . null $ res 
+            then error "Parser did not consume entire stream."
+            else error "Parser error."
+    where   res = parse (spaces >> m) s
+            complete = filter (null . snd) res
 
 instance Monad Parser where
     return = pure
@@ -105,7 +107,7 @@ infixOp x f = symbol x >> return f
 word :: Parser String
 word = token $ some . oneOf $ ['a'..'z'] ++ ['A'..'Z'] ++ "0123456789"
 
---------  Logic interpretation  --------
+--------  Parsing Propositions  --------
 
 eqvSymbols, impSymbols, orSymbols, andSymbols, negationSymbols, contradictionSymbols :: [String]
 eqvSymbols = ["<=>", "eqv", "<->", "↔"]
@@ -115,7 +117,7 @@ andSymbols = ["&", "&&", "and", "*", ".", "^", "∧"]
 negationSymbols = ["not", "~", "!", "¬"]
 contradictionSymbols = ["F", "contradiction", "bottom", "0", "⊥"]
 
-impOp, orOp, andOp :: Parser (Prop -> Prop -> Prop)
+impOp, orOp, andOp, eqvOp :: Parser (Prop -> Prop -> Prop)
 eqvOp = oneOfs eqvSymbols >> return Eqv
 impOp = oneOfs impSymbols >> return Imp
 orOp = oneOfs orSymbols >> return Or
@@ -144,8 +146,8 @@ teeOp :: Parser ([Prop] -> [Prop] -> Conjecture)
 teeOp = oneOfs teeSymbols >> return Proves
 
 conjectureParser :: Parser Conjecture
-conjectureParser = flip ($) <$> propsParser <*> teeOp <*> propsParser <|>
-                    flip ($) [] <$> teeOp <*> propsParser
+conjectureParser = flip ($) <$> propsParser <*> teeOp <*> propsParser 
+                  --  <|> flip ($) [] <$> teeOp <*> propsParser
 
 propsParser :: Parser [Prop]
-propsParser = (:) <$> propParser <*> many (symbol "," >> propParser) -- <|> return []
+propsParser = ((:) <$> propParser <*> many (symbol "," >> propParser)) <++> (spaces >> return [])
